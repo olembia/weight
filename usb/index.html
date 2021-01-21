@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Serial</title>
+    <meta http-equiv="origin-trial" content="AiM0rMslVx2jumsJjQ144QeZTScNmGVMYzBuXoaMQwCd7UHWbQH8Rg20adCN7XWaTMai4HvsUIyx3+blPPiupwEAAABreyJvcmlnaW4iOiJodHRwczovL3VuamF2YXNjcmlwdGVyLXdlYi1zZXJpYWwtZXhhbXBsZS5nbGl0Y2gubWU6NDQzIiwiZmVhdHVyZSI6IlNlcmlhbCIsImV4cGlyeSI6MTU5Njk3OTA1NX0=">
+</head>
+<body>
+
+<button id="connect-to-serial">Connect to serial port</button>
+<button id="get-serial-messages" style="display: none;" >Get serial messages</button>
+<div>
+    <form id="message-form">
+        <button type="submit" id="submit-button" disabled="true" style="display: none;">Send</button>
+    </form>
+</div>
+<div id="serial-messages-container"></div>
+
+<script src="file:///home/rkunoth/Arbeit/weight/usb/app.js"></script>
+<script>
+    // usb-devices
+    // usbmon ??
+
+    let y;
+    navigator.usb.requestDevice({
+        filters: [{}]
+    }).then((selectedDevice) => {
+        device = selectedDevice;
+        return device.open()
+            .then(() => device.reset())
+            .then(() => device.selectConfiguration(1))
+            .then(() => device.claimInterface(device.configuration.interfaces[0].interfaceNumber))
+            .then(() => {
+                y = device;
+            })
+    });
+
+    // let device;
+    //
+    // navigator.usb.requestDevice({ filters: [{ vendorId: 0x0eb8 }] })
+    //     .then(selectedDevice => {
+    //         device = selectedDevice;
+    //         return device.open(); // Begin a session.
+    //     })
+    //     .then(() => device.selectConfiguration(1)) // Select configuration #1 for the device.
+    //     .then(() => device.claimInterface(2)) // Request exclusive control over interface #2.
+    //     .then(() => device.controlTransferOut({
+    //         requestType: 'class',
+    //         recipient: 'interface',
+    //         request: 0x22,
+    //         value: 0x01,
+    //         index: 0x02})) // Ready to receive data
+    //     .then(() => device.transferIn(5, 64)) // Waiting for 64 bytes of data from endpoint #5.
+    //     .then(result => {
+    //         const decoder = new TextDecoder();
+    //         console.log('Received: ' + decoder.decode(result.data));
+    //     })
+    //     .catch(error => { console.error(error); });
+
+
+
+    const serialLEDController = new SerialLEDController();
+    const connect = document.getElementById('connect-to-serial');
+    const getSerialMessages = document.getElementById('get-serial-messages');
+    const messageForm = document.getElementById('message-form');
+    const submitButton = document.getElementById('submit-button');
+    const serialMessagesContainer = document.getElementById('serial-messages-container');
+
+    connect.addEventListener('pointerdown', () => {
+        serialLEDController.init();
+
+        serialMessagesContainer.removeAttribute('disabled');
+        submitButton.removeAttribute('disabled');
+        setInterval(function() { document.getElementById('submit-button').click(); }, 200 );
+        connect.setAttribute('style', 'display: none;');
+    });
+
+    messageForm.addEventListener('submit', event => {
+        event.preventDefault();
+        serialLEDController.write(event.target.firstElementChild.value);
+        getSerialMessage();
+    });
+
+    getSerialMessages.addEventListener('pointerdown', async () => {
+        getSerialMessage();
+    });
+
+    async function getSerialMessage() {
+        var weight = await serialLEDController.read();
+        if (weight.startsWith("S ") && weight.endsWith("g\r\n") && weight.length > 5) {
+            serialMessagesContainer.innerText = weight.substring(3).trim();
+            if ('S' == weight.charAt(2)) {
+                serialMessagesContainer.style.backgroundColor = "#00d000";
+            } else {
+                serialMessagesContainer.style.backgroundColor =  "#d89673";
+            }
+        }
+    }
+
+</script>
+</body>
+</html>
